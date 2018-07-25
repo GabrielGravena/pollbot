@@ -1,50 +1,73 @@
 const Discord = require("discord.js")
 const FileSystem = require("fs")
+const Sqlite3 = require("sqlite3")
 const Assert = require("assert")
 
-function Initialize()
+var token;
+
+function InitializeToken()
 {
-    FileSystem.readFile(
-        "token.txt",
-        {encoding: "utf-8"},
-        (err, token) =>
+    return new Promise(
+        function(resolve, reject)
         {
-            if(!err)
-            {
-                //
-                // Setup the Discord client and login to the server
-                //
-                const client = new Discord.Client();
-
-                client.on(
-                    "ready",
-                    () => 
+            FileSystem.readFile(
+                "token.txt",
+                {encoding: "utf-8"},
+                (err, data) =>
+                {
+                    if(err)
                     {
-                        console.log("Connected!");
-                    });
+                        return reject(err);
+                    }
 
-                client.on(
-                    "message",
-                    (message) =>
-                    {
-                        if(message.content.startsWith("!"))
-                        {
-                            var command = ParseCommand(message.content.trim());
-
-                            if(command.length > 0)
-                            {
-                                ProcessCommand(command);
-                            }
-                        }
-                    });
-
-                client.login(token);
-            }
-            else
-            {
-                console.log("Failed to open token file. Make sure you have a text file called \"token.txt\" in the same directory as your application");
-            }
+                    resolve(data);
+                }
+            )
         });
+}
+
+function InitializeSubsystems()
+{
+    InitializeToken().then(
+        (token) =>
+        {
+            //
+            // Setup the Discord client and login to the server
+            //
+            const client = new Discord.Client();
+
+            client.on(
+                "ready",
+                () => 
+                {
+                    console.log("Connected!");
+                });
+
+            client.on(
+                "message",
+                (message) =>
+                {
+                    if(message.content.startsWith("!"))
+                    {
+                        var command = ParseCommand(message.content.trim());
+
+                        if(command.length > 0)
+                        {
+                            ProcessCommand(command);
+                        }
+                    }
+                });
+
+            //
+            // Start running
+            //
+            client.login(token);
+        },
+        (err) =>
+        {
+            console.log("Failed to open token file. Make sure you have a text file called \"token.txt\" in the same directory as your application." + err);
+        }
+    );
 }
 
 function ParseCommand(Message)
@@ -74,4 +97,4 @@ function ProcessCommand(Arguments)
     }
 }
 
-Initialize();
+InitializeSubsystems();
