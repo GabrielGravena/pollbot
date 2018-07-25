@@ -67,7 +67,7 @@ function InitializeDiscordClient(token, db)
         "message",
         (message) =>
         {
-            if(message.content.startsWith("!"))
+            if(message.content.startsWith("!poll."))
             {
                 var command = ParseCommand(message.content.trim());
 
@@ -101,10 +101,9 @@ async function InitializeSubsystems()
 function ParseCommand(Message)
 {
     Assert(Message.length > 0);
-    Assert(Message.charAt(0) == '!');
 
-    // Remove the '!'
-    Message = Message.slice(1, Message.length);
+    // Remove the '!poll.' prefix
+    Message = Message.slice(6, Message.length);
 
     // Return an array with the command and the arguments
     return Message.split(" ");
