@@ -26,48 +26,41 @@ function InitializeToken()
         });
 }
 
-function InitializeSubsystems()
+async function InitializeSubsystems()
 {
-    InitializeToken().then(
-        (token) =>
+    var token = await InitializeToken();
+
+    //
+    // Setup the Discord client and login to the server
+    //
+    const client = new Discord.Client();
+
+    client.on(
+        "ready",
+        () => 
         {
-            //
-            // Setup the Discord client and login to the server
-            //
-            const client = new Discord.Client();
+            console.log("Connected!");
+        });
 
-            client.on(
-                "ready",
-                () => 
-                {
-                    console.log("Connected!");
-                });
-
-            client.on(
-                "message",
-                (message) =>
-                {
-                    if(message.content.startsWith("!"))
-                    {
-                        var command = ParseCommand(message.content.trim());
-
-                        if(command.length > 0)
-                        {
-                            ProcessCommand(command);
-                        }
-                    }
-                });
-
-            //
-            // Start running
-            //
-            client.login(token);
-        },
-        (err) =>
+    client.on(
+        "message",
+        (message) =>
         {
-            console.log("Failed to open token file. Make sure you have a text file called \"token.txt\" in the same directory as your application." + err);
-        }
-    );
+            if(message.content.startsWith("!"))
+            {
+                var command = ParseCommand(message.content.trim());
+
+                if(command.length > 0)
+                {
+                    ProcessCommand(command);
+                }
+            }
+        });
+
+    //
+    // Start running
+    //
+    client.login(token);
 }
 
 function ParseCommand(Message)
