@@ -3,8 +3,6 @@ const FileSystem = require("fs")
 const Sqlite3 = require("sqlite3")
 const Assert = require("assert")
 
-var token;
-
 function InitializeToken()
 {
     return new Promise(
@@ -26,10 +24,33 @@ function InitializeToken()
         });
 }
 
-async function InitializeSubsystems()
+SqliteRunAsync = function(db, sql)
 {
-    var token = await InitializeToken();
+    return new Promise((resolve, reject) =>
+    {
+        db.run(sql, (err) =>
+        {
+            if (err)
+            {
+                reject(err);
+            }
 
+            resolve();
+        })
+    });
+}
+
+async function InitializeDatabase()
+{
+    var db = new Sqlite3.Database("file.db");
+
+    await SqliteRunAsync(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
+
+    return db;
+}
+
+function InitializeDiscordClient(token, db)
+{
     //
     // Setup the Discord client and login to the server
     //
@@ -57,10 +78,24 @@ async function InitializeSubsystems()
             }
         });
 
+    client.db = db;
+
     //
     // Start running
     //
+    console.log("Initializing Discord client...");
     client.login(token);
+}
+
+async function InitializeSubsystems()
+{
+    console.log("Reading token from file...");
+    var token = await InitializeToken();
+
+    console.log("Initializing database...");
+    var db = await InitializeDatabase();
+
+    InitializeDiscordClient(token, db);
 }
 
 function ParseCommand(Message)

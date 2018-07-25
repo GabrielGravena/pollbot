@@ -61,6 +61,7 @@ typings/
 .next
 
 token.txt
+file.db
 package.json
 package-lock.json
 node_modules
