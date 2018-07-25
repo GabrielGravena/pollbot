@@ -1,0 +1,77 @@
+const Discord = require("discord.js")
+const FileSystem = require("fs")
+const Assert = require("assert")
+
+function Initialize()
+{
+    FileSystem.readFile(
+        "token.txt",
+        {encoding: "utf-8"},
+        (err, token) =>
+        {
+            if(!err)
+            {
+                //
+                // Setup the Discord client and login to the server
+                //
+                const client = new Discord.Client();
+
+                client.on(
+                    "ready",
+                    () => 
+                    {
+                        console.log("Connected!");
+                    });
+
+                client.on(
+                    "message",
+                    (message) =>
+                    {
+                        if(message.content.startsWith("!"))
+                        {
+                            var command = ParseCommand(message.content.trim());
+
+                            if(command.length > 0)
+                            {
+                                ProcessCommand(command);
+                            }
+                        }
+                    });
+
+                client.login(token);
+            }
+            else
+            {
+                console.log("Failed to open token file. Make sure you have a text file called \"token.txt\" in the same directory as your application");
+            }
+        });
+}
+
+function ParseCommand(Message)
+{
+    Assert(Message.length > 0);
+    Assert(Message.charAt(0) == '!');
+
+    // Remove the '!'
+    Message = Message.slice(1, Message.length);
+
+    // Return an array with the command and the arguments
+    return Message.split(" ");
+}
+
+function ProcessCommand(Arguments)
+{
+    Assert(Arguments.length > 0);
+
+    console.log("Command is: " + Arguments[0]);
+    
+    if(Arguments.length > 1)
+    {
+        for (var i=1;i<Arguments.length;i++)
+        {
+            console.log("Argument " + i + ": " + Arguments[i]);
+        }
+    }
+}
+
+Initialize();
