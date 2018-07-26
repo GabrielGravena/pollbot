@@ -24,11 +24,11 @@ function InitializeToken()
         });
 }
 
-SqliteRunAsync = function(db, sql)
+Sqlite3.Database.prototype.runAsync = function(sql)
 {
     return new Promise((resolve, reject) =>
     {
-        db.run(sql, (err) =>
+        this.run(sql, (err) =>
         {
             if (err)
             {
@@ -40,11 +40,11 @@ SqliteRunAsync = function(db, sql)
     });
 }
 
-SqliteGetAsync = function(db, sql)
+Sqlite3.Database.prototype.allAsync = function(sql)
 {
     return new Promise((resolve, reject) =>
     {
-        db.all(sql, (err, rows) =>
+        this.all(sql, (err, rows) =>
         {
             if (err)
             {
@@ -60,7 +60,7 @@ async function InitializeDatabase()
 {
     var db = new Sqlite3.Database("file.db");
 
-    await SqliteRunAsync(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
+    await db.runAsync("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
 
     return db;
 }
@@ -101,7 +101,7 @@ async function ProcessCommand(Message, Arguments)
             else
             {
                 console.log("Creating user " + Arguments[1]);
-                await SqliteRunAsync(this.db, "INSERT INTO users (name) VALUES ('" + Arguments[1] + "')");
+                await this.db.runAsync("INSERT INTO users (name) VALUES ('" + Arguments[1] + "')");
             }
             break;
 
@@ -113,7 +113,7 @@ async function ProcessCommand(Message, Arguments)
             }
             else
             {
-                var users = await SqliteGetAsync(this.db, "SELECT id, name from users");
+                var users = await this.db.allAsync("SELECT id, name from users");
 
                 console.log("Listing " + users.length + " users:");
 
