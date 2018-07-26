@@ -64,6 +64,57 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
             }
             break;
 
+        case "create":
+
+            if (Arguments.length != 2)
+            {
+                console.log("Invalid number of arguments.");
+            }
+            else
+            {
+                console.log(`Creating poll ${Arguments[1]}...`);
+                await this.db.runAsync(`INSERT INTO polls (name) VALUES ('${Arguments[1]}')`);
+            }
+            break;
+
+        case "list":
+
+            if (Arguments.length != 1)
+            {
+                console.log("Invalid number of arguments.");
+            }
+            else
+            {
+                var polls = await this.db.allAsync("SELECT id, name from polls");
+
+                if(!polls)
+                {
+                    break;
+                }
+
+                console.log(`There are currently ${polls.length} polls`);
+
+                var verb =
+                    polls.length == 1
+                        ? "is"
+                        : "are";
+
+                var noun = 
+                    polls.length == 1
+                        ? "poll"
+                        : "polls";
+
+                var replyMsg = `There ${verb}  ${polls.length} ${noun} in the system.\n\n`;
+
+                for (var i=0;i<polls.length;i++)
+                {
+                    replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} \n`;
+                }
+
+                Message.reply(replyMsg);
+            }
+            break;
+
         default:
 
             console.log("Invalid command received: " + Arguments[0]);

@@ -37,6 +37,7 @@ module.exports.Create = async function()
     var db = new Sqlite3.Database("file.db");
 
     await db.runAsync("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
+    await db.runAsync("CREATE TABLE IF NOT EXISTS polls (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
 
     return db;
 }
