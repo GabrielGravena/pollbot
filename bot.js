@@ -65,7 +65,7 @@ async function InitializeDatabase()
     return db;
 }
 
-function ParseCommand(Message)
+Discord.Client.prototype.ParseCommand = function (Message)
 {
     Assert(Message.length > 0);
 
@@ -76,7 +76,7 @@ function ParseCommand(Message)
     return Message.split(" ");
 }
 
-async function ProcessCommand(Message, Arguments)
+Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 {
     Assert(Arguments.length > 0);
 
@@ -141,9 +141,6 @@ function InitializeDiscordClient(token, db)
     // Setup the Discord client and login to the server
     //
     const client = new Discord.Client();
-
-    client.ParseCommand = ParseCommand;
-    client.ProcessCommand = ProcessCommand;
 
     client.on(
         "ready",
