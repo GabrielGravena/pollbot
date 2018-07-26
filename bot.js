@@ -1,7 +1,6 @@
 const FileSystem = require("fs")
 const Db = require("./db.js")
 const DiscordClient = require("./discordclient.js")
-const Assert = require("assert")
 
 function ReadToken()
 {

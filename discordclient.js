@@ -1,4 +1,5 @@
 const Discord = require("discord.js")
+const Assert = require("assert")
 
 Discord.Client.prototype.ParseCommand = function (Message)
 {
