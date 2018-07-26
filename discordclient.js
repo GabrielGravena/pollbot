@@ -70,7 +70,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
     }
 }
 
-function InitializeDiscordClient(token, db)
+module.exports.Initialize = function (token, db)
 {
     //
     // Setup the Discord client and login to the server
@@ -109,5 +109,3 @@ function InitializeDiscordClient(token, db)
     console.log("Initializing Discord client...");
     client.login(token);
 }
-
-module.exports.InitializeDiscordClient = InitializeDiscordClient;

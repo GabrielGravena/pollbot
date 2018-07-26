@@ -3,7 +3,7 @@ const Db = require("./db.js")
 const DiscordClient = require("./discordclient.js")
 const Assert = require("assert")
 
-function InitializeToken()
+function ReadToken()
 {
     return new Promise(
         function(resolve, reject)
@@ -27,12 +27,12 @@ function InitializeToken()
 async function InitializeSubsystems()
 {
     console.log("Reading token from file...");
-    var token = await InitializeToken();
+    var token = await ReadToken();
 
     console.log("Initializing database...");
-    var db = await Db.InitializeDatabase();
+    var db = await Db.Create();
 
-    DiscordClient.InitializeDiscordClient(token, db);
+    DiscordClient.Initialize(token, db);
 }
 
 InitializeSubsystems();

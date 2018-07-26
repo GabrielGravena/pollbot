@@ -32,7 +32,7 @@ Sqlite3.Database.prototype.allAsync = function(sql)
     });
 }
 
-async function InitializeDatabase()
+module.exports.Create = async function()
 {
     var db = new Sqlite3.Database("file.db");
 
@@ -40,5 +40,3 @@ async function InitializeDatabase()
 
     return db;
 }
-
-module.exports.InitializeDatabase = InitializeDatabase;
