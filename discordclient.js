@@ -1,15 +1,115 @@
 const Discord = require("discord.js")
 const Assert = require("assert")
 
+const CommandPrefix = "poll";
+
+//
+// Once I figure out how to write unit tests, make sure to
+// user these test cases:
+//
+// !poll.foo t
+// !poll.foo "t"
+// !poll.foo "test"
+// !poll.foo "test1 test2" "test3 test4 test5" "" "test6 test7 test8 test9"
+// !poll.foo bar "quotes quotes" test1 "quotes again" "quotes yet again" test2 "guess what, quotes"
+//
 Discord.Client.prototype.ParseCommand = function (Message)
 {
     Assert(Message.length > 0);
 
-    // Remove the '!poll.' prefix
-    Message = Message.slice(6, Message.length);
+    // Remove the prefix
+    var prefixLength = 2 + CommandPrefix.length;
+    Message = Message.slice(prefixLength, Message.length);
 
-    // Return an array with the command and the arguments
-    return Message.split(" ");
+    // Split the string into chunks using space as a token
+    var arguments = Message.split(" ");
+
+    var quoteStart = -1;
+
+    // Note: Is there such a thing as references in javascript?
+    // I would like to alias a lot of this array positions to
+    // make the code nice to read, but it makes me nervous that
+    // javascript will just make a bunch of copies. I don't
+    // like to not know what is going on behind the scenes!
+    // This code already has way more copying than what I'm
+    // comfortable with!
+    for(var i = 0;i < arguments.length;i++)
+    {
+        if (arguments[i].charAt(0) == '"')
+        {
+            if (arguments.length > 1 && arguments[i].charAt(1) == '"')
+            {
+                // There is nothing inside these quotes
+                arguments[i] = arguments[i].slice(2, arguments[i].length);
+            }
+            else
+            {
+                Assert(quoteStart == -1);
+
+                // This is a quote open, record the position
+                quoteStart = i;
+            }
+        }
+        else if (arguments[i].charAt(arguments[i].length - 1) == '"')
+        {
+            Assert(quoteStart != -1);
+
+            // Remove the leading quote
+            arguments[quoteStart] = arguments[quoteStart].slice(1, arguments[quoteStart.length - 1]);
+
+            // Append everything between (quoteStart, currentPosition] to the quoteStart entry
+            for (var j = quoteStart + 1;j <= i;j++)
+            {
+                let sliceStart, sliceEnd;
+
+                // Decide how we're going to slice the current string by looking if we are in
+                // the middle or in the edge
+                if (j == i)
+                {
+                    sliceStart = 0;
+                    sliceEnd = arguments[j].length - 1;
+                }
+                else
+                {
+                    sliceStart = 0;
+                    sliceEnd = arguments[j].length;
+                }
+
+                arguments[quoteStart] += " " + arguments[j].slice(sliceStart, sliceEnd);
+            }
+
+            // Now we could have a few empty spaces in the arguments array, slide everything
+            // to the left by that offset
+            var offset = i - quoteStart;
+
+            for (var j = i + 1;j < arguments.length;j++)
+            {
+                arguments[j - offset] = arguments[j];
+            }
+
+            // Our arguments array now has a few bogus entries at the end, remove them
+            arguments.length -= offset;
+
+            // Now we are ready to go back processing the rest of the strings
+            i = quoteStart;
+            quoteStart = -1;
+        }
+    }
+
+    if(quoteStart != -1)
+    {
+        // There is either one word wrapped by quotes or a quote imbalance.
+        if (arguments[quoteStart].charAt(arguments[quoteStart].length - 1) == '"')
+        {
+            arguments[quoteStart] = arguments[quoteStart].slice(1, arguments[quoteStart].length - 1);
+        }
+        else
+        {
+            throw "User did not close quotes";
+        }
+    }
+
+    return arguments;
 }
 
 Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
@@ -144,11 +244,20 @@ module.exports.Initialize = function (token, db)
             {
                 console.log(`Received message from ${message.author.id}`);
 
-                var command = client.ParseCommand(message.content.trim());
-
-                if(command.length > 0)
+                try
                 {
-                    client.ProcessCommand(message, command);
+                    // As far as I understand variables declared with 'var' do not have block scope
+                    var command = client.ParseCommand(message.content.trim());
+
+                    if(command.length > 0)
+                    {
+                        client.ProcessCommand(message, command);
+                    }
+                }
+                catch(err)
+                {
+                    console.log(`Failed to process message ${message.content}`);
+                    message.reply("Sorry, I failed to understand you!");
                 }
             }
         });
