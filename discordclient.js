@@ -166,7 +166,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "create":
 
-            if (Arguments.length != 2)
+            if (Arguments.length < 2)
             {
                 console.log("Invalid number of arguments.");
             }
@@ -174,6 +174,16 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
             {
                 console.log(`Creating poll ${Arguments[1]}...`);
                 await this.db.runAsync(`INSERT INTO polls (name) VALUES ('${Arguments[1]}')`);
+
+                if (Arguments.length > 2)
+                {
+                    for(var j = 2;j < Arguments.length;j++)
+                    {
+                        var pollId = this.db.lastID;
+
+                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${Arguments[j]}', '${pollId}')`);
+                    }
+                }
             }
             break;
 
