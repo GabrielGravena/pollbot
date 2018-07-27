@@ -4,14 +4,14 @@ Sqlite3.Database.prototype.runAsync = function(sql)
 {
     return new Promise((resolve, reject) =>
     {
-        this.run(sql, (err) =>
+        this.run(sql, function (err)
         {
             if (err)
             {
                 reject(err);
             }
 
-            resolve();
+            resolve(this.lastID);
         })
     });
 }
