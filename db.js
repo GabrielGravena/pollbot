@@ -39,6 +39,6 @@ module.exports.Create = async function()
     await db.runAsync("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
     await db.runAsync("CREATE TABLE IF NOT EXISTS polls (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
     await db.runAsync("CREATE TABLE IF NOT EXISTS polloptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pollid INTEGER, FOREIGN KEY (pollid) REFERENCES polls(id))");
-
+    await db.runAsync("CREATE TABLE IF NOT EXISTS votes (userid INTEGER, pollid INTEGER, optionid INTEGER, FOREIGN KEY (userid) REFERENCES users(id), FOREIGN KEY (pollid) REFERENCES polls(id),FOREIGN KEY (optionid) REFERENCES polloptions(id))");
     return db;
 }

@@ -246,19 +246,74 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
                     break;
                 }
 
-                var polloptions = await this.db.allAsync(`SELECT name FROM polloptions WHERE pollid='${pollid}'`);
+                var polloptions = await this.db.allAsync(`SELECT id, name FROM polloptions WHERE pollid = ${pollid}`);
 
                 var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
 
                 for(var j = 0;j < polloptions.length;j++)
                 {
-                    replyMsg += `[${j}] ${polloptions[j]["name"]}\n`;
+                    replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
                 }
 
                 Message.reply(replyMsg);
             }
             break;
-            
+
+        case "vote":
+
+            if (Arguments.length != 3)
+            {
+                console.log("Invalid number of arguments.");
+            }
+            else
+            {
+                var pollid = Arguments[1];
+                var optionid = Arguments[2];
+
+                await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('1', '${pollid}', '${optionid}')`);
+
+                Message.reply(`Your vote was recorded! Type !${CommandPrefix}.view ${pollid} to see the partial results.`);
+            }
+            break;
+
+        case "results":
+
+            if (Arguments.length != 2)
+            {
+                console.log("Invalid number of arguments.");
+            }
+            else
+            {
+                var pollid = Arguments[1];
+
+                var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
+
+                if(!poll)
+                {
+                    Message.reply("Sorry, this poll does not exist!");
+                    break;
+                }
+
+                var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${pollid} GROUP BY polloptions.id`);
+
+                var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
+
+                for(var j = 0;j < polloptions.length;j++)
+                {
+                    var voteCount = polloptions[j]["voteCount"];
+
+                    var verb =
+                        voteCount == 1
+                            ? "vote"
+                            : "votes";
+
+                    replyMsg += `${polloptions[j]["name"]} - ${voteCount} ${verb}\n`;
+                }
+
+                Message.reply(replyMsg);
+            }
+            break;
+
         default:
 
             console.log("Invalid command received: " + Arguments[0]);
