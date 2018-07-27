@@ -330,14 +330,15 @@ module.exports.Initialize = function (token, db)
 
     client.on(
         "ready",
-        () => 
+        function() 
         {
             console.log("Connected!");
+            
         });
 
     client.on(
         "message",
-        (message) =>
+        function(message)
         {
             if(message.content.startsWith("!poll."))
             {
