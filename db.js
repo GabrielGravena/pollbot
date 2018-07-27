@@ -38,7 +38,7 @@ module.exports.Create = async function()
 
     await db.runAsync("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
     await db.runAsync("CREATE TABLE IF NOT EXISTS polls (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
-    await db.runAsync("CREATE TABLE IF NOT EXISTS polloptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pollid INTEGER)");
+    await db.runAsync("CREATE TABLE IF NOT EXISTS polloptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pollid INTEGER, FOREIGN KEY (pollid) REFERENCES polls(id))");
 
     return db;
 }
