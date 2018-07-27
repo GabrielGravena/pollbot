@@ -4,14 +4,14 @@ Sqlite3.Database.prototype.runAsync = function(sql)
 {
     return new Promise((resolve, reject) =>
     {
-        this.run(sql, (err) =>
+        this.run(sql, function (err)
         {
             if (err)
             {
                 reject(err);
             }
 
-            resolve();
+            resolve(this.lastID);
         })
     });
 }
@@ -38,6 +38,7 @@ module.exports.Create = async function()
 
     await db.runAsync("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
     await db.runAsync("CREATE TABLE IF NOT EXISTS polls (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
+    await db.runAsync("CREATE TABLE IF NOT EXISTS polloptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pollid INTEGER, FOREIGN KEY (pollid) REFERENCES polls(id))");
 
     return db;
 }

@@ -37,7 +37,12 @@ Discord.Client.prototype.ParseCommand = function (Message)
     {
         if (arguments[i].charAt(0) == '"')
         {
-            if (arguments.length > 1 && arguments[i].charAt(1) == '"')
+            if (arguments[i].charAt(arguments[i].length - 1) == '"')
+            {
+                // This is only one word wrapped by quotes
+                arguments[i] = arguments[i].slice(1, arguments[i].length - 1);
+            }
+            else if (arguments.length > 1 && arguments[i].charAt(1) == '"')
             {
                 // There is nothing inside these quotes
                 arguments[i] = arguments[i].slice(2, arguments[i].length);
@@ -166,14 +171,22 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "create":
 
-            if (Arguments.length != 2)
+            if (Arguments.length < 2)
             {
                 console.log("Invalid number of arguments.");
             }
             else
             {
                 console.log(`Creating poll ${Arguments[1]}...`);
-                await this.db.runAsync(`INSERT INTO polls (name) VALUES ('${Arguments[1]}')`);
+                var lastID = await this.db.runAsync(`INSERT INTO polls (name) VALUES ('${Arguments[1]}')`);
+
+                if (Arguments.length > 2)
+                {
+                    for(var j = 2;j < Arguments.length;j++)
+                    {
+                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${Arguments[j]}', '${lastID}')`);
+                    }
+                }
             }
             break;
 
@@ -215,6 +228,37 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
             }
             break;
 
+        case "view":
+
+            if (Arguments.length != 2)
+            {
+                console.log("Invalid number of arguments.");
+            }
+            else
+            {
+                var pollid = Arguments[1];
+
+                var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
+
+                if(!poll)
+                {
+                    Message.reply("Sorry, this poll does not exist!");
+                    break;
+                }
+
+                var polloptions = await this.db.allAsync(`SELECT name FROM polloptions WHERE pollid='${pollid}'`);
+
+                var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
+
+                for(var j = 0;j < polloptions.length;j++)
+                {
+                    replyMsg += `[${j}] ${polloptions[j]["name"]}\n`;
+                }
+
+                Message.reply(replyMsg);
+            }
+            break;
+            
         default:
 
             console.log("Invalid command received: " + Arguments[0]);
