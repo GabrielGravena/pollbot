@@ -173,7 +173,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
             }
             else
             {
-                var polls = await this.db.allAsync("SELECT id, name from polls");
+                var polls = await this.db.allAsync("SELECT id, name, channelid from polls");
 
                 if(!polls)
                 {
@@ -196,7 +196,15 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
                 for (var i=0;i<polls.length;i++)
                 {
-                    replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} \n`;
+                    var channelId = polls[i]["channelid"];
+                    var server = Message.guild;
+                    
+                    var channelName =
+                        channelId != null
+                            ? server.channels[channelId]
+                            : "No channel";
+
+                    replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} | ${channelName} \n`;
                 }
 
                 Message.reply(replyMsg);
