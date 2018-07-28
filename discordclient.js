@@ -153,7 +153,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
             else
             {
                 console.log(`Creating poll ${Arguments[1]}...`);
-                var lastID = await this.db.runAsync(`INSERT INTO polls (name) VALUES ('${Arguments[1]}')`);
+                var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Arguments[1]}', '${Message.channel.id}')`);
 
                 if (Arguments.length > 2)
                 {
@@ -173,7 +173,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
             }
             else
             {
-                var polls = await this.db.allAsync("SELECT id, name, channelid from polls");
+                var polls = await this.db.allAsync("SELECT id, name, channelid FROM polls");
 
                 if(!polls)
                 {
@@ -201,7 +201,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
                     
                     var channelName =
                         channelId != null
-                            ? server.channels[channelId]
+                            ? server.channels.get(channelId)
                             : "No channel";
 
                     replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} | ${channelName} \n`;
