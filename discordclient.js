@@ -75,6 +75,13 @@ Discord.Client.prototype.Results = async function (Message, PollId)
     Message.reply(replyMsg);
 }
 
+Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
+{
+    await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${PollId}', '${OptionId}')`);
+
+    Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${PollId} to see the partial results.`);
+}
+
 function IsQuote(c)
 {
     if(c == '"' || c == '”' || c == '“')
@@ -89,6 +96,7 @@ var CommandScope =
 {
     GLOBAL : 0,
     CHANNEL : 1,
+    MAXIMUM : 2,
 };
 
 //
@@ -222,6 +230,8 @@ Discord.Client.prototype.ParseCommand = function (Message)
 
 Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 {
+    Assert(Command.scope < CommandScope.MAXIMUM);
+
     var arguments = Command.arguments;
 
     Assert(arguments.length > 0);
@@ -325,19 +335,23 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 
         case "vote":
 
-            if (arguments.length != 3)
-            {
-                console.log("Invalid number of arguments.");
-            }
-            else
-            {
-                var pollid = arguments[1];
-                var optionid = arguments[2];
+            var pollId;
+            var optionId;
 
-                await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${pollid}', '${optionid}')`);
-
-                Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${pollid} to see the partial results.`);
+            if (Command.scope == CommandScope.GLOBAL)
+            {
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 3);
+                pollId = arguments[1];
+                optionId = arguments[2];
             }
+            else if (Command.scope == CommandScope.CHANNEL)
+            {
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
+                pollId = await this.GetPollIdFromChannel(Message.channel);
+                optionId = arguments[1];
+            }
+
+            this.Vote(Message, pollId, optionId);            
             break;
 
         case "results":
