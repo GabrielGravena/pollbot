@@ -14,6 +14,12 @@ function IsQuote(c)
     return false;
 }
 
+var CommandScope = 
+{
+    GLOBAL : 0,
+    CHANNEL : 1,
+};
+
 //
 // Once I figure out how to write unit tests, make sure to
 // user these test cases:
@@ -28,17 +34,23 @@ Discord.Client.prototype.ParseCommand = function (Message)
 {
     Assert(Message.length > 0);
 
+    var scope;
+
     // See if it is a global command or channel specific
     if (Message.startsWith(`!${CommandPrefix}`))
     {
         // Remove the prefix
         var prefixLength = 2 + CommandPrefix.length;
         Message = Message.slice(prefixLength, Message.length);
+
+        scope = CommandScope.GLOBAL;
     }
     else
     {
         // Remove the ponctuation
         Message = Message.slice(1,Message.length);
+
+        scope = CommandScope.CHANNEL;
     }
 
     // Split the string into chunks using space as a token
@@ -134,41 +146,43 @@ Discord.Client.prototype.ParseCommand = function (Message)
         }
     }
 
-    return arguments;
+    return { arguments, scope };
 }
 
-Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
+Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 {
-    Assert(Arguments.length > 0);
+    var arguments = Command.arguments;
 
-    console.log("Command is: " + Arguments[0]);
+    Assert(arguments.length > 0);
 
-    if(Arguments.length > 1)
+    console.log("Command is: " + arguments[0]);
+
+    if(arguments.length > 1)
     {
-        for (var i=1;i<Arguments.length;i++)
+        for (var i=1;i<arguments.length;i++)
         {
-            console.log("Argument " + i + ": " + Arguments[i]);
+            console.log("Argument " + i + ": " + arguments[i]);
         }
     }
 
-    switch (Arguments[0])
+    switch (arguments[0])
     {
         case "create":
 
-            if (Arguments.length < 2)
+            if (arguments.length < 2)
             {
                 console.log("Invalid number of arguments.");
             }
             else
             {
-                console.log(`Creating poll ${Arguments[1]}...`);
-                var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Arguments[1]}', '${Message.channel.id}')`);
+                console.log(`Creating poll ${arguments[1]}...`);
+                var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${arguments[1]}', '${Message.channel.id}')`);
 
-                if (Arguments.length > 2)
+                if (arguments.length > 2)
                 {
-                    for(var j = 2;j < Arguments.length;j++)
+                    for(var j = 2;j < arguments.length;j++)
                     {
-                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${Arguments[j]}', '${lastID}')`);
+                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${arguments[j]}', '${lastID}')`);
                     }
                 }
             }
@@ -176,7 +190,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "list":
 
-            if (Arguments.length != 1)
+            if (arguments.length != 1)
             {
                 console.log("Invalid number of arguments.");
             }
@@ -222,13 +236,13 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "view":
 
-            if (Arguments.length != 2)
+            if (arguments.length != 2)
             {
                 console.log("Invalid number of arguments.");
             }
             else
             {
-                var pollid = Arguments[1];
+                var pollid = arguments[1];
 
                 var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
 
@@ -253,14 +267,14 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "vote":
 
-            if (Arguments.length != 3)
+            if (arguments.length != 3)
             {
                 console.log("Invalid number of arguments.");
             }
             else
             {
-                var pollid = Arguments[1];
-                var optionid = Arguments[2];
+                var pollid = arguments[1];
+                var optionid = arguments[2];
 
                 await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${pollid}', '${optionid}')`);
 
@@ -270,13 +284,13 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "results":
 
-            if (Arguments.length != 2)
+            if (arguments.length != 2)
             {
                 console.log("Invalid number of arguments.");
             }
             else
             {
-                var pollid = Arguments[1];
+                var pollid = arguments[1];
 
                 var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
 
@@ -308,7 +322,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         default:
 
-            console.log("Invalid command received: " + Arguments[0]);
+            console.log("Invalid command received: " + arguments[0]);
             break;
     }
 }
@@ -351,7 +365,7 @@ module.exports.Initialize = function (token, db)
                     // As far as I understand variables declared with 'var' do not have block scope
                     var command = client.ParseCommand(message.content.trim());
 
-                    if(command.length > 0)
+                    if(command.arguments.length > 0)
                     {
                         client.ProcessCommand(message, command);
                     }
