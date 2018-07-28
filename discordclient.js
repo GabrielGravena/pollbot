@@ -28,9 +28,18 @@ Discord.Client.prototype.ParseCommand = function (Message)
 {
     Assert(Message.length > 0);
 
-    // Remove the prefix
-    var prefixLength = 2 + CommandPrefix.length;
-    Message = Message.slice(prefixLength, Message.length);
+    // See if it is a global command or channel specific
+    if (Message.startsWith(`!${CommandPrefix}`))
+    {
+        // Remove the prefix
+        var prefixLength = 2 + CommandPrefix.length;
+        Message = Message.slice(prefixLength, Message.length);
+    }
+    else
+    {
+        // Remove the ponctuation
+        Message = Message.slice(1,Message.length);
+    }
 
     // Split the string into chunks using space as a token
     var arguments = Message.split(" ");
@@ -333,7 +342,7 @@ module.exports.Initialize = function (token, db)
         "message",
         function(message)
         {
-            if(message.content.startsWith("!poll."))
+            if(message.content.startsWith("!"))
             {
                 console.log(`Received message from ${message.author.id}`);
 
