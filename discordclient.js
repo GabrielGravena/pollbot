@@ -12,7 +12,19 @@ function ThrowInvalidNumberOfArgumentsIf(Predicate)
     }
 }
 
-Discord.Client.prototype.ViewResults = async function (Message, PollId)
+Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
+{
+    var polls = await this.db.allAsync(`SELECT id FROM polls WHERE channelid = '${Channel.id}'`);
+
+    if (!polls)
+    {
+        return undefined;
+    }
+
+    return polls[0]["id"];
+}
+
+Discord.Client.prototype.View = async function (Message, PollId)
 {
     var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
 
@@ -29,6 +41,35 @@ Discord.Client.prototype.ViewResults = async function (Message, PollId)
     for(var j = 0;j < polloptions.length;j++)
     {
         replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
+    }
+
+    Message.reply(replyMsg);
+}
+
+Discord.Client.prototype.Results = async function (Message, PollId)
+{
+    var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
+
+    if(!poll)
+    {
+        Message.reply("Sorry, this poll does not exist!");
+        return undefined;
+    }
+
+    var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${PollId} GROUP BY polloptions.id`);
+
+    var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
+
+    for(var j = 0;j < polloptions.length;j++)
+    {
+        var voteCount = polloptions[j]["voteCount"];
+
+        var verb =
+            voteCount == 1
+                ? "vote"
+                : "votes";
+
+        replyMsg += `${polloptions[j]["name"]} - ${voteCount} ${verb}\n`;
     }
 
     Message.reply(replyMsg);
@@ -276,20 +317,10 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
             else if (Command.scope == CommandScope.CHANNEL)
             {
                 ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
-
-                var channel = Message.channel;
-
-                var polls = await this.db.allAsync(`SELECT id FROM polls WHERE channelid = '${channel.id}'`);
-
-                if (!polls)
-                {
-                    break;
-                }
-
-                pollId = polls[0]["id"];
+                pollId = await this.GetPollIdFromChannel(Message.channel);
             }
 
-            this.ViewResults(Message, pollId);
+            this.View(Message, pollId);
             break;
 
         case "vote":
@@ -311,40 +342,20 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 
         case "results":
 
-            if (arguments.length != 2)
+            var pollId;
+
+            if (Command.scope == CommandScope.GLOBAL)
             {
-                console.log("Invalid number of arguments.");
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
+                pollId = arguments[1];
             }
             else
             {
-                var pollid = arguments[1];
-
-                var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
-
-                if(!poll)
-                {
-                    Message.reply("Sorry, this poll does not exist!");
-                    break;
-                }
-
-                var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${pollid} GROUP BY polloptions.id`);
-
-                var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
-
-                for(var j = 0;j < polloptions.length;j++)
-                {
-                    var voteCount = polloptions[j]["voteCount"];
-
-                    var verb =
-                        voteCount == 1
-                            ? "vote"
-                            : "votes";
-
-                    replyMsg += `${polloptions[j]["name"]} - ${voteCount} ${verb}\n`;
-                }
-
-                Message.reply(replyMsg);
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
+                pollId = await this.GetPollIdFromChannel(Message.channel);
             }
+
+            this.Results(Message, pollId);
             break;
 
         default:
