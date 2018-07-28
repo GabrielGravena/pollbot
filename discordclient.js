@@ -3,6 +3,84 @@ const Assert = require("assert")
 
 const CommandPrefix = "poll";
 
+function ThrowInvalidNumberOfArgumentsIf(Predicate)
+{
+    if (Predicate)
+    {
+        console.log("Invalid number of arguments.");
+        throw "Invalid number of arguments.";
+    }
+}
+
+Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
+{
+    var polls = await this.db.allAsync(`SELECT id FROM polls WHERE channelid = '${Channel.id}'`);
+
+    if (!polls)
+    {
+        return undefined;
+    }
+
+    return polls[0]["id"];
+}
+
+Discord.Client.prototype.View = async function (Message, PollId)
+{
+    var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
+
+    if(!poll)
+    {
+        Message.reply("Sorry, this poll does not exist!");
+        return;
+    }
+
+    var polloptions = await this.db.allAsync(`SELECT id, name FROM polloptions WHERE pollid = ${PollId}`);
+
+    var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
+
+    for(var j = 0;j < polloptions.length;j++)
+    {
+        replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
+    }
+
+    Message.reply(replyMsg);
+}
+
+Discord.Client.prototype.Results = async function (Message, PollId)
+{
+    var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
+
+    if(!poll)
+    {
+        Message.reply("Sorry, this poll does not exist!");
+        return undefined;
+    }
+
+    var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${PollId} GROUP BY polloptions.id`);
+
+    var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
+
+    for(var j = 0;j < polloptions.length;j++)
+    {
+        var voteCount = polloptions[j]["voteCount"];
+
+        var verb =
+            voteCount == 1
+                ? "vote"
+                : "votes";
+
+        replyMsg += `${polloptions[j]["name"]} - ${voteCount} ${verb}\n`;
+    }
+
+    Message.reply(replyMsg);
+}
+
+Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
+{
+    await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${PollId}', '${OptionId}')`);
+
+    Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${PollId} to see the partial results.`);
+}
 
 function IsQuote(c)
 {
@@ -13,6 +91,13 @@ function IsQuote(c)
 
     return false;
 }
+
+var CommandScope = 
+{
+    GLOBAL : 0,
+    CHANNEL : 1,
+    MAXIMUM : 2,
+};
 
 //
 // Once I figure out how to write unit tests, make sure to
@@ -28,9 +113,24 @@ Discord.Client.prototype.ParseCommand = function (Message)
 {
     Assert(Message.length > 0);
 
-    // Remove the prefix
-    var prefixLength = 2 + CommandPrefix.length;
-    Message = Message.slice(prefixLength, Message.length);
+    var scope;
+
+    // See if it is a global command or channel specific
+    if (Message.startsWith(`!${CommandPrefix}`))
+    {
+        // Remove the prefix
+        var prefixLength = 2 + CommandPrefix.length;
+        Message = Message.slice(prefixLength, Message.length);
+
+        scope = CommandScope.GLOBAL;
+    }
+    else
+    {
+        // Remove the ponctuation
+        Message = Message.slice(1,Message.length);
+
+        scope = CommandScope.CHANNEL;
+    }
 
     // Split the string into chunks using space as a token
     var arguments = Message.split(" ");
@@ -125,41 +225,45 @@ Discord.Client.prototype.ParseCommand = function (Message)
         }
     }
 
-    return arguments;
+    return { arguments, scope };
 }
 
-Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
+Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 {
-    Assert(Arguments.length > 0);
+    Assert(Command.scope < CommandScope.MAXIMUM);
 
-    console.log("Command is: " + Arguments[0]);
+    var arguments = Command.arguments;
 
-    if(Arguments.length > 1)
+    Assert(arguments.length > 0);
+
+    console.log("Command is: " + arguments[0]);
+
+    if(arguments.length > 1)
     {
-        for (var i=1;i<Arguments.length;i++)
+        for (var i=1;i<arguments.length;i++)
         {
-            console.log("Argument " + i + ": " + Arguments[i]);
+            console.log("Argument " + i + ": " + arguments[i]);
         }
     }
 
-    switch (Arguments[0])
+    switch (arguments[0])
     {
         case "create":
 
-            if (Arguments.length < 2)
+            if (arguments.length < 2)
             {
                 console.log("Invalid number of arguments.");
             }
             else
             {
-                console.log(`Creating poll ${Arguments[1]}...`);
-                var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Arguments[1]}', '${Message.channel.id}')`);
+                console.log(`Creating poll ${arguments[1]}...`);
+                var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${arguments[1]}', '${Message.channel.id}')`);
 
-                if (Arguments.length > 2)
+                if (arguments.length > 2)
                 {
-                    for(var j = 2;j < Arguments.length;j++)
+                    for(var j = 2;j < arguments.length;j++)
                     {
-                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${Arguments[j]}', '${lastID}')`);
+                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${arguments[j]}', '${lastID}')`);
                     }
                 }
             }
@@ -167,7 +271,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "list":
 
-            if (Arguments.length != 1)
+            if (arguments.length != 1)
             {
                 console.log("Invalid number of arguments.");
             }
@@ -213,93 +317,64 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
         case "view":
 
-            if (Arguments.length != 2)
+            var pollId;
+
+            if (Command.scope == CommandScope.GLOBAL)
             {
-                console.log("Invalid number of arguments.");
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
+                pollId = arguments[1];
             }
-            else
+            else if (Command.scope == CommandScope.CHANNEL)
             {
-                var pollid = Arguments[1];
-
-                var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
-
-                if(!poll)
-                {
-                    Message.reply("Sorry, this poll does not exist!");
-                    break;
-                }
-
-                var polloptions = await this.db.allAsync(`SELECT id, name FROM polloptions WHERE pollid = ${pollid}`);
-
-                var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
-
-                for(var j = 0;j < polloptions.length;j++)
-                {
-                    replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
-                }
-
-                Message.reply(replyMsg);
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
+                pollId = await this.GetPollIdFromChannel(Message.channel);
             }
+
+            this.View(Message, pollId);
             break;
 
         case "vote":
 
-            if (Arguments.length != 3)
-            {
-                console.log("Invalid number of arguments.");
-            }
-            else
-            {
-                var pollid = Arguments[1];
-                var optionid = Arguments[2];
+            var pollId;
+            var optionId;
 
-                await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${pollid}', '${optionid}')`);
-
-                Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${pollid} to see the partial results.`);
+            if (Command.scope == CommandScope.GLOBAL)
+            {
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 3);
+                pollId = arguments[1];
+                optionId = arguments[2];
             }
+            else if (Command.scope == CommandScope.CHANNEL)
+            {
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
+                pollId = await this.GetPollIdFromChannel(Message.channel);
+                optionId = arguments[1];
+            }
+
+            this.Vote(Message, pollId, optionId);            
             break;
 
         case "results":
 
-            if (Arguments.length != 2)
+            var pollId;
+
+            if (Command.scope == CommandScope.GLOBAL)
             {
-                console.log("Invalid number of arguments.");
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
+                pollId = arguments[1];
             }
             else
             {
-                var pollid = Arguments[1];
-
-                var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
-
-                if(!poll)
-                {
-                    Message.reply("Sorry, this poll does not exist!");
-                    break;
-                }
-
-                var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${pollid} GROUP BY polloptions.id`);
-
-                var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
-
-                for(var j = 0;j < polloptions.length;j++)
-                {
-                    var voteCount = polloptions[j]["voteCount"];
-
-                    var verb =
-                        voteCount == 1
-                            ? "vote"
-                            : "votes";
-
-                    replyMsg += `${polloptions[j]["name"]} - ${voteCount} ${verb}\n`;
-                }
-
-                Message.reply(replyMsg);
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
+                pollId = await this.GetPollIdFromChannel(Message.channel);
             }
+
+            this.Results(Message, pollId);
             break;
 
         default:
 
-            console.log("Invalid command received: " + Arguments[0]);
+            console.log("Invalid command received: " + arguments[0]);
             break;
     }
 }
@@ -333,7 +408,7 @@ module.exports.Initialize = function (token, db)
         "message",
         function(message)
         {
-            if(message.content.startsWith("!poll."))
+            if(message.content.startsWith("!"))
             {
                 console.log(`Received message from ${message.author.id}`);
 
@@ -342,7 +417,7 @@ module.exports.Initialize = function (token, db)
                     // As far as I understand variables declared with 'var' do not have block scope
                     var command = client.ParseCommand(message.content.trim());
 
-                    if(command.length > 0)
+                    if(command.arguments.length > 0)
                     {
                         client.ProcessCommand(message, command);
                     }
