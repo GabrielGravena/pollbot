@@ -3,6 +3,36 @@ const Assert = require("assert")
 
 const CommandPrefix = "poll";
 
+function ThrowInvalidNumberOfArgumentsIf(Predicate)
+{
+    if (Predicate)
+    {
+        console.log("Invalid number of arguments.");
+        throw "Invalid number of arguments.";
+    }
+}
+
+Discord.Client.prototype.ViewResults = async function (Message, PollId)
+{
+    var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
+
+    if(!poll)
+    {
+        Message.reply("Sorry, this poll does not exist!");
+        return;
+    }
+
+    var polloptions = await this.db.allAsync(`SELECT id, name FROM polloptions WHERE pollid = ${PollId}`);
+
+    var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
+
+    for(var j = 0;j < polloptions.length;j++)
+    {
+        replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
+    }
+
+    Message.reply(replyMsg);
+}
 
 function IsQuote(c)
 {
@@ -236,33 +266,30 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 
         case "view":
 
-            if (arguments.length != 2)
+            var pollId;
+
+            if (Command.scope == CommandScope.GLOBAL)
             {
-                console.log("Invalid number of arguments.");
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
+                pollId = arguments[1];
             }
-            else
+            else if (Command.scope == CommandScope.CHANNEL)
             {
-                var pollid = arguments[1];
+                ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
 
-                var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${pollid}'`);
+                var channel = Message.channel;
 
-                if(!poll)
+                var polls = await this.db.allAsync(`SELECT id FROM polls WHERE channelid = '${channel.id}'`);
+
+                if (!polls)
                 {
-                    Message.reply("Sorry, this poll does not exist!");
                     break;
                 }
 
-                var polloptions = await this.db.allAsync(`SELECT id, name FROM polloptions WHERE pollid = ${pollid}`);
-
-                var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
-
-                for(var j = 0;j < polloptions.length;j++)
-                {
-                    replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
-                }
-
-                Message.reply(replyMsg);
+                pollId = polls[0]["id"];
             }
+
+            this.ViewResults(Message, pollId);
             break;
 
         case "vote":
