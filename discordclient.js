@@ -38,6 +38,45 @@ Discord.Client.prototype.CreatePoll = async function (Channel, Name, Options)
     }
 }
 
+Discord.Client.prototype.ListPolls = async function(Message)
+{
+    var polls = await this.db.allAsync("SELECT id, name, channelid FROM polls");
+
+    if(!polls)
+    {
+        return;
+    }
+
+    console.log(`There are currently ${polls.length} polls`);
+
+    var verb =
+        polls.length == 1
+            ? "is"
+            : "are";
+
+    var noun = 
+        polls.length == 1
+            ? "poll"
+            : "polls";
+
+    var replyMsg = `There ${verb} ${polls.length} active ${noun}.\n\n`;
+
+    for (var i=0;i<polls.length;i++)
+    {
+        var channelId = polls[i]["channelid"];
+        var server = Message.guild;
+        
+        var channelName =
+            channelId != null
+                ? server.channels.get(channelId)
+                : "No channel";
+
+        replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} | ${channelName} \n`;
+    }
+
+    Message.reply(replyMsg);
+}
+
 Discord.Client.prototype.View = async function (Message, PollId)
 {
     var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
@@ -270,48 +309,14 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
                 Message.channel,
                 arguments[1],
                 arguments.length > 1 ? arguments.slice(2) : {});
-                
+
             break;
 
         case "list":
 
             ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
 
-            var polls = await this.db.allAsync("SELECT id, name, channelid FROM polls");
-
-            if(!polls)
-            {
-                break;
-            }
-
-            console.log(`There are currently ${polls.length} polls`);
-
-            var verb =
-                polls.length == 1
-                    ? "is"
-                    : "are";
-
-            var noun = 
-                polls.length == 1
-                    ? "poll"
-                    : "polls";
-
-            var replyMsg = `There ${verb}  ${polls.length} ${noun} in the system.\n\n`;
-
-            for (var i=0;i<polls.length;i++)
-            {
-                var channelId = polls[i]["channelid"];
-                var server = Message.guild;
-                
-                var channelName =
-                    channelId != null
-                        ? server.channels.get(channelId)
-                        : "No channel";
-
-                replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} | ${channelName} \n`;
-            }
-
-            Message.reply(replyMsg);
+            this.ListPolls(Message);
             break;
 
         case "view":
