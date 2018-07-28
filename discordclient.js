@@ -24,6 +24,20 @@ Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
     return polls[0]["id"];
 }
 
+Discord.Client.prototype.CreatePoll = async function (Channel, Name, Options)
+{
+    console.log(`Creating poll ${arguments[1]}...`);
+    var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Name}', '${Channel.id}')`);
+
+    if (arguments.length > 2)
+    {
+        for(var i = 0;i < Options.length;i++)
+        {
+            await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${Options[i]}', '${lastID}')`);
+        }
+    }
+}
+
 Discord.Client.prototype.View = async function (Message, PollId)
 {
     var poll = await this.db.allAsync(`SELECT name FROM polls WHERE id='${PollId}'`);
@@ -250,69 +264,54 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
     {
         case "create":
 
-            if (arguments.length < 2)
-            {
-                console.log("Invalid number of arguments.");
-            }
-            else
-            {
-                console.log(`Creating poll ${arguments[1]}...`);
-                var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${arguments[1]}', '${Message.channel.id}')`);
+            ThrowInvalidNumberOfArgumentsIf(arguments.length < 2);
 
-                if (arguments.length > 2)
-                {
-                    for(var j = 2;j < arguments.length;j++)
-                    {
-                        await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${arguments[j]}', '${lastID}')`);
-                    }
-                }
-            }
+            this.CreatePoll(
+                Message.channel,
+                arguments[1],
+                arguments.length > 1 ? arguments.slice(2) : {});
+                
             break;
 
         case "list":
 
-            if (arguments.length != 1)
+            ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
+
+            var polls = await this.db.allAsync("SELECT id, name, channelid FROM polls");
+
+            if(!polls)
             {
-                console.log("Invalid number of arguments.");
+                break;
             }
-            else
+
+            console.log(`There are currently ${polls.length} polls`);
+
+            var verb =
+                polls.length == 1
+                    ? "is"
+                    : "are";
+
+            var noun = 
+                polls.length == 1
+                    ? "poll"
+                    : "polls";
+
+            var replyMsg = `There ${verb}  ${polls.length} ${noun} in the system.\n\n`;
+
+            for (var i=0;i<polls.length;i++)
             {
-                var polls = await this.db.allAsync("SELECT id, name, channelid FROM polls");
+                var channelId = polls[i]["channelid"];
+                var server = Message.guild;
+                
+                var channelName =
+                    channelId != null
+                        ? server.channels.get(channelId)
+                        : "No channel";
 
-                if(!polls)
-                {
-                    break;
-                }
-
-                console.log(`There are currently ${polls.length} polls`);
-
-                var verb =
-                    polls.length == 1
-                        ? "is"
-                        : "are";
-
-                var noun = 
-                    polls.length == 1
-                        ? "poll"
-                        : "polls";
-
-                var replyMsg = `There ${verb}  ${polls.length} ${noun} in the system.\n\n`;
-
-                for (var i=0;i<polls.length;i++)
-                {
-                    var channelId = polls[i]["channelid"];
-                    var server = Message.guild;
-                    
-                    var channelName =
-                        channelId != null
-                            ? server.channels.get(channelId)
-                            : "No channel";
-
-                    replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} | ${channelName} \n`;
-                }
-
-                Message.reply(replyMsg);
+                replyMsg += `[${polls[i]["id"]}]  ${polls[i]["name"]} | ${channelName} \n`;
             }
+
+            Message.reply(replyMsg);
             break;
 
         case "view":
