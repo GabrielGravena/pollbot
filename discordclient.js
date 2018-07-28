@@ -3,6 +3,17 @@ const Assert = require("assert")
 
 const CommandPrefix = "poll";
 
+
+function IsQuote(c)
+{
+    if(c == '"' || c == '”' || c == '“')
+    {
+        return true;
+    }
+
+    return false;
+}
+
 //
 // Once I figure out how to write unit tests, make sure to
 // user these test cases:
@@ -35,14 +46,14 @@ Discord.Client.prototype.ParseCommand = function (Message)
     // comfortable with!
     for(var i = 0;i < arguments.length;i++)
     {
-        if (arguments[i].charAt(0) == '"')
+        if (IsQuote(arguments[i].charAt(0)))
         {
-            if (arguments[i].charAt(arguments[i].length - 1) == '"')
+            if (IsQuote(arguments[i].charAt(arguments[i].length - 1)))
             {
                 // This is only one word wrapped by quotes
                 arguments[i] = arguments[i].slice(1, arguments[i].length - 1);
             }
-            else if (arguments.length > 1 && arguments[i].charAt(1) == '"')
+            else if (arguments.length > 1 && IsQuote(arguments[i].charAt(1)))
             {
                 // There is nothing inside these quotes
                 arguments[i] = arguments[i].slice(2, arguments[i].length);
@@ -55,7 +66,7 @@ Discord.Client.prototype.ParseCommand = function (Message)
                 quoteStart = i;
             }
         }
-        else if (arguments[i].charAt(arguments[i].length - 1) == '"')
+        else if (IsQuote(arguments[i].charAt(arguments[i].length - 1)))
         {
             Assert(quoteStart != -1);
 
@@ -104,7 +115,7 @@ Discord.Client.prototype.ParseCommand = function (Message)
     if(quoteStart != -1)
     {
         // There is either one word wrapped by quotes or a quote imbalance.
-        if (arguments[quoteStart].charAt(arguments[quoteStart].length - 1) == '"')
+        if (IsQuote(arguments[quoteStart].charAt(arguments[quoteStart].length - 1)))
         {
             arguments[quoteStart] = arguments[quoteStart].slice(1, arguments[quoteStart].length - 1);
         }
@@ -133,42 +144,6 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
 
     switch (Arguments[0])
     {
-        case "createuser":
-
-            if(Arguments.length != 2)
-            {
-                console.log("Invalid number of arguments for command!");
-            }
-            else
-            {
-                console.log("Creating user " + Arguments[1]);
-                await this.db.runAsync("INSERT INTO users (name) VALUES ('" + Arguments[1] + "')");
-            }
-            break;
-
-        case "listusers":
-
-            if(Arguments.length != 1)
-            {
-                console.log("Invalid number of arguments for command!");
-            }
-            else
-            {
-                var users = await this.db.allAsync("SELECT id, name from users");
-
-                console.log("Listing " + users.length + " users:");
-
-                var replyMsg = "There are " + users.length + " users in the system.\n\n";
-
-                for (var i=0;i<users.length;i++)
-                {
-                    replyMsg += "[" + users[i]["id"] + "] " + users[i]["name"] + "\n";
-                }
-
-                Message.reply(replyMsg);
-            }
-            break;
-
         case "create":
 
             if (Arguments.length < 2)
@@ -270,9 +245,9 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Arguments)
                 var pollid = Arguments[1];
                 var optionid = Arguments[2];
 
-                await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('1', '${pollid}', '${optionid}')`);
+                await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${pollid}', '${optionid}')`);
 
-                Message.reply(`Your vote was recorded! Type !${CommandPrefix}.view ${pollid} to see the partial results.`);
+                Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${pollid} to see the partial results.`);
             }
             break;
 
@@ -330,14 +305,25 @@ module.exports.Initialize = function (token, db)
 
     client.on(
         "ready",
-        () => 
+        function() 
         {
             console.log("Connected!");
+
+            console.log(`There are ${this.users.size} users in the server.`);
+            
+            this.users.forEach(user =>
+                {
+                    var userName = user.username;
+                    var userId = user.id;
+
+                    console.log(`[${userId}] ${userName}`);
+                });
+
         });
 
     client.on(
         "message",
-        (message) =>
+        function(message)
         {
             if(message.content.startsWith("!poll."))
             {
