@@ -3,6 +3,21 @@ const Assert = require("assert")
 
 const CommandPrefix = "poll";
 
+var DiscordClientError = 
+{
+    NO_ACTIVE_POLL : 0,
+    DUPLICATE_VOTE : 1,
+};
+
+class DiscordClientException extends Error
+{
+    constructor (ErrorMessage, ErrorNumber)
+    {
+        super(ErrorMessage);
+        this.errno = ErrorNumber;
+    }
+}
+
 //
 // Some platforms will give a generic quote symbol
 // others will make an effort to use open/close
@@ -31,9 +46,9 @@ Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
 {
     var polls = await this.db.allAsync(`SELECT id FROM polls WHERE channelid = '${Channel.id}'`);
 
-    if (!polls)
+    if (polls.length == 0)
     {
-        return undefined;
+        throw new DiscordClientException(`The channel ${Channel} has no active poll.`, DiscordClientError.NO_ACTIVE_POLL);
     }
 
     return polls[0]["id"];
@@ -145,7 +160,29 @@ Discord.Client.prototype.Results = async function (Message, PollId)
 
 Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
 {
-    await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${PollId}', '${OptionId}')`);
+    try
+    {
+        await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${PollId}', '${OptionId}')`);
+    }
+    catch (err)
+    {
+        // TODO: Is there any way to check if this is a Sqlite exception?
+        //
+        // See if exception is because of the user violating the table's primary key
+        // constraint, in which case it is trying to vote twice for the same option
+        // on the same poll.
+        //
+        // TODO: Kind of akward to straight up compare the error number to 19, there
+        // should be someplace with the symbol definitions of error codes.
+        if (err.errno && err.errno == 19)
+        {
+            throw new DiscordClientException("User already voted.", DiscordClientError.DUPLICATE_VOTE);
+        }
+        else
+        {
+            throw err;
+        }
+    }
 
     Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${PollId} to see the partial results.`);
 }
@@ -434,9 +471,13 @@ module.exports.Initialize = function (token, db)
                 }
                 catch(err)
                 {
-                    if (err.errno && err.errno == 19)
+                    if (err.errno == DiscordClientError.DUPLICATE_VOTE)
                     {
                         message.reply(`Sorry, you already voted on this poll.`);
+                    }
+                    else if (err.errno == DiscordClientError.NO_ACTIVE_POLL)
+                    {
+                        message.reply("Sorry, there is no active poll on this channel.");
                     }
                     else
                     {
