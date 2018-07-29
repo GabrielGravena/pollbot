@@ -8,6 +8,7 @@ var DiscordClientError =
     NO_ACTIVE_POLL : 0,
     DUPLICATE_VOTE : 1,
     CHANNEL_ALREADY_HAS_POLL : 2,
+    NO_SUCH_OPTION : 3,
 };
 
 class DiscordClientException extends Error
@@ -132,13 +133,13 @@ Discord.Client.prototype.View = async function (Message, PollId)
         return;
     }
 
-    var polloptions = await this.db.allAsync(`SELECT id, name FROM polloptions WHERE pollid = ${PollId}`);
+    var polloptions = await this.db.allAsync(`SELECT name FROM polloptions WHERE pollid = ${PollId}`);
 
-    var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
+    var replyMsg = `Here is the poll:\n\nName: ${poll[0]["name"]}\n\n`;
 
     for(var j = 0;j < polloptions.length;j++)
     {
-        replyMsg += `[${polloptions[j]["id"]}] ${polloptions[j]["name"]}\n`;
+        replyMsg += `[${j}] ${polloptions[j]["name"]}\n`;
     }
 
     Message.reply(replyMsg);
@@ -156,7 +157,7 @@ Discord.Client.prototype.Results = async function (Message, PollId)
 
     var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${PollId} GROUP BY polloptions.id`);
 
-    var replyMsg = `Here is your poll:\n\nName: ${poll[0]["name"]}\n\n`;
+    var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
 
     for(var j = 0;j < polloptions.length;j++)
     {
@@ -173,10 +174,19 @@ Discord.Client.prototype.Results = async function (Message, PollId)
     Message.reply(replyMsg);
 }
 
-Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
+Discord.Client.prototype.Vote = async function (Message, PollId, OptionIndex)
 {
     try
     {
+        var polloptions = await this.db.allAsync(`SELECT id FROM polloptions WHERE pollid = ${PollId}`);
+
+        if (OptionIndex >= polloptions.length || OptionIndex < 0)
+        {
+            throw new DiscordClientException("Invalid option.", DiscordClientError.NO_SUCH_OPTION);
+        }
+
+        optionId = polloptions[OptionIndex]["id"];
+
         await this.db.runAsync(`INSERT INTO votes (
             userid,
             pollid,
@@ -184,8 +194,8 @@ Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
             flag) SELECT
                 '${Message.author.id}' as userid,
                 '${PollId}' as pollid,
-                '${OptionId}' as optionid,
-                flag FROM polloptions WHERE id = '${OptionId}'`);
+                '${optionId}' as optionid,
+                flag FROM polloptions WHERE id = '${optionId}'`);
     }
     catch (err)
     {
@@ -423,13 +433,13 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
             {
                 ThrowInvalidNumberOfArgumentsIf(arguments.length != 3);
                 pollId = arguments[1];
-                optionId = arguments[2];
+                optionId = parseInt(arguments[2]);
             }
             else if (Command.scope == CommandScope.CHANNEL)
             {
                 ThrowInvalidNumberOfArgumentsIf(arguments.length != 2);
                 pollId = await this.GetPollIdFromChannel(Message.channel);
-                optionId = arguments[1];
+                optionId = parseInt(arguments[1]);
             }
 
             await this.Vote(Message, pollId, optionId);            
@@ -502,9 +512,13 @@ module.exports.Initialize = function (token, db)
                     {
                         message.reply("Sorry, there is no active poll on this channel.");
                     }
-                    else if( err.errno == DiscordClientError.CHANNEL_ALREADY_HAS_POLL)
+                    else if (err.errno == DiscordClientError.CHANNEL_ALREADY_HAS_POLL)
                     {
                         message.reply("Sorry, this channel already has an active poll.");
+                    }
+                    else if (err.errno == DiscordClientError.NO_SUCH_OPTION)
+                    {
+                        message.reply("This option does not exist in the poll. Type !view to see the available options.");
                     }
                     else
                     {
