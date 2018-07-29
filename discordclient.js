@@ -3,6 +3,21 @@ const Assert = require("assert")
 
 const CommandPrefix = "poll";
 
+//
+// Some platforms will give a generic quote symbol
+// others will make an effort to use open/close
+// quotes, make sure we catch whatever is the case.
+//
+function IsQuote(c)
+{
+    if(c == '"' || c == '“' || c == '”')
+    {
+        return true;
+    }
+
+    return false;
+}
+
 function ThrowInvalidNumberOfArgumentsIf(Predicate)
 {
     if (Predicate)
@@ -135,20 +150,22 @@ Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
     Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${PollId} to see the partial results.`);
 }
 
-function IsQuote(c)
-{
-    if(c == '"' || c == '”' || c == '“')
-    {
-        return true;
-    }
-
-    return false;
-}
-
 var CommandScope = 
 {
+    //
+    // A command with a global scope can be issued from
+    // any channel, and as such needs to identify its
+    // targets, i.e. which poll to operate on.
+    //
     GLOBAL : 0,
+
+    //
+    // A command with a channel scope is only valid in
+    // the context of a poll channel, meaning the poll
+    // id is implicit given the current channel.
+    //
     CHANNEL : 1,
+
     MAXIMUM : 2,
 };
 
