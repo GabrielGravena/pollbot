@@ -355,7 +355,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
                 optionId = arguments[1];
             }
 
-            this.Vote(Message, pollId, optionId);            
+            await this.Vote(Message, pollId, optionId);            
             break;
 
         case "results":
@@ -399,7 +399,7 @@ module.exports.Initialize = function (token, db)
 
     client.on(
         "message",
-        function(message)
+        async function(message)
         {
             if(message.content.startsWith("!"))
             {
@@ -412,13 +412,21 @@ module.exports.Initialize = function (token, db)
 
                     if(command.arguments.length > 0)
                     {
-                        this.ProcessCommand(message, command);
+                        await this.ProcessCommand(message, command);
                     }
                 }
                 catch(err)
                 {
-                    console.log(`Failed to process message ${message.content}`);
-                    message.reply("Sorry, I failed to understand you!");
+                    if (err.errno && err.errno == 19)
+                    {
+                        message.reply(`Sorry, you already voted on this poll.`);
+                    }
+                    else
+                    {
+                        message.reply("Sorry, I failed to understand you!");
+                    }
+
+                    console.log(err);
                 }
             }
         });
