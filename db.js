@@ -36,9 +36,27 @@ module.exports.Create = async function()
 {
     var db = new Sqlite3.Database("file.db");
 
-    await db.runAsync("CREATE TABLE IF NOT EXISTS polls (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, channelid TEXT)");
-    await db.runAsync("CREATE TABLE IF NOT EXISTS polloptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, pollid INTEGER, FOREIGN KEY (pollid) REFERENCES polls(id))");
-    await db.runAsync("CREATE TABLE IF NOT EXISTS votes (userid TEXT, pollid INTEGER, optionid INTEGER, FOREIGN KEY (pollid) REFERENCES polls(id),FOREIGN KEY (optionid) REFERENCES polloptions(id), PRIMARY KEY (userid,pollid,optionid))");
+    await db.runAsync(
+        `CREATE TABLE IF NOT EXISTS polls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            channelid TEXT)`);
+
+    await db.runAsync(
+        `CREATE TABLE IF NOT EXISTS polloptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            pollid INTEGER,
+            FOREIGN KEY (pollid) REFERENCES polls(id))`);
+        
+    await db.runAsync(
+        `CREATE TABLE IF NOT EXISTS votes (
+            userid TEXT,
+            pollid INTEGER,
+            optionid INTEGER,
+            FOREIGN KEY (pollid) REFERENCES polls(id),
+            FOREIGN KEY (optionid) REFERENCES polloptions(id),
+            PRIMARY KEY (userid,pollid,optionid))`);
 
     return db;
 }
