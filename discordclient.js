@@ -56,12 +56,15 @@ Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
     return polls[0]["id"];
 }
 
-Discord.Client.prototype.CreatePoll = async function (Channel, Name, Options)
+Discord.Client.prototype.CreatePoll = async function (Message, Name, Options)
 {
     console.log(`Creating poll ${arguments[1]}...`);
+
+    var channel = Message.channel;
+
     try
     {
-        var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Name}', '${Channel.id}')`);
+        var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Name}', '${channel.id}')`);
     }
     catch (err)
     {
@@ -82,6 +85,8 @@ Discord.Client.prototype.CreatePoll = async function (Channel, Name, Options)
             await this.db.runAsync(`INSERT INTO polloptions (name, pollid) VALUES ('${Options[i]}', '${lastID}')`);
         }
     }
+
+    Message.reply(`Poll created! Type !view to see the details.`);
 }
 
 Discord.Client.prototype.ListPolls = async function(Message)
@@ -393,7 +398,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
             ThrowInvalidNumberOfArgumentsIf(arguments.length < 2);
 
             await this.CreatePoll(
-                Message.channel,
+                Message,
                 arguments[1],
                 arguments.length > 1 ? arguments.slice(2) : {});
 
