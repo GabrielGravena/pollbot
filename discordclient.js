@@ -162,7 +162,15 @@ Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
 {
     try
     {
-        await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${PollId}', '${OptionId}')`);
+        await this.db.runAsync(`INSERT INTO votes (
+            userid,
+            pollid,
+            optionid,
+            flag) SELECT
+                '${Message.author.id}' as userid,
+                '${PollId}' as pollid,
+                '${OptionId}' as optionid,
+                flag FROM polloptions WHERE id = '${OptionId}'`);
     }
     catch (err)
     {
