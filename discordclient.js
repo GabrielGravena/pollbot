@@ -7,6 +7,7 @@ var DiscordClientError =
 {
     NO_ACTIVE_POLL : 0,
     DUPLICATE_VOTE : 1,
+    CHANNEL_ALREADY_HAS_POLL : 2,
 };
 
 class DiscordClientException extends Error
@@ -57,7 +58,21 @@ Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
 Discord.Client.prototype.CreatePoll = async function (Channel, Name, Options)
 {
     console.log(`Creating poll ${arguments[1]}...`);
-    var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Name}', '${Channel.id}')`);
+    try
+    {
+        var lastID = await this.db.runAsync(`INSERT INTO polls (name, channelid) VALUES ('${Name}', '${Channel.id}')`);
+    }
+    catch (err)
+    {
+        if (err.errno && err.errno == 19)
+        {
+            throw new DiscordClientException("Channel already has a poll.", DiscordClientError.CHANNEL_ALREADY_HAS_POLL);
+        }
+        else
+        {
+            throw err;
+        }
+    }
 
     if (arguments.length > 2)
     {
@@ -136,7 +151,7 @@ Discord.Client.prototype.Results = async function (Message, PollId)
     if(!poll)
     {
         Message.reply("Sorry, this poll does not exist!");
-        return undefined;
+        return;
     }
 
     var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${PollId} GROUP BY polloptions.id`);
@@ -162,7 +177,15 @@ Discord.Client.prototype.Vote = async function (Message, PollId, OptionId)
 {
     try
     {
-        await this.db.runAsync(`INSERT INTO votes (userid, pollid, optionid) VALUES ('${Message.author.id}', '${PollId}', '${OptionId}')`);
+        await this.db.runAsync(`INSERT INTO votes (
+            userid,
+            pollid,
+            optionid,
+            flag) SELECT
+                '${Message.author.id}' as userid,
+                '${PollId}' as pollid,
+                '${OptionId}' as optionid,
+                flag FROM polloptions WHERE id = '${OptionId}'`);
     }
     catch (err)
     {
@@ -359,7 +382,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 
             ThrowInvalidNumberOfArgumentsIf(arguments.length < 2);
 
-            this.CreatePoll(
+            await this.CreatePoll(
                 Message.channel,
                 arguments[1],
                 arguments.length > 1 ? arguments.slice(2) : {});
@@ -478,6 +501,10 @@ module.exports.Initialize = function (token, db)
                     else if (err.errno == DiscordClientError.NO_ACTIVE_POLL)
                     {
                         message.reply("Sorry, there is no active poll on this channel.");
+                    }
+                    else if( err.errno == DiscordClientError.CHANNEL_ALREADY_HAS_POLL)
+                    {
+                        message.reply("Sorry, this channel already has an active poll.");
                     }
                     else
                     {
