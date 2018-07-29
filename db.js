@@ -40,7 +40,8 @@ module.exports.Create = async function()
         `CREATE TABLE IF NOT EXISTS polls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            channelid TEXT NOT NULL)`);
+            channelid TEXT NOT NULL,
+            UNIQUE (channelid))`);
 
     //
     // What is the flag value?
