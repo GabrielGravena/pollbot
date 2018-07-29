@@ -394,18 +394,7 @@ module.exports.Initialize = function (token, db)
         "ready",
         function() 
         {
-            console.log("Connected!");
-
-            console.log(`There are ${this.users.size} users in the server.`);
-            
-            this.users.forEach(user =>
-                {
-                    var userName = user.username;
-                    var userId = user.id;
-
-                    console.log(`[${userId}] ${userName}`);
-                });
-
+            console.log(`[${this.readyAt}] Connected!`);
         });
 
     client.on(
@@ -419,11 +408,11 @@ module.exports.Initialize = function (token, db)
                 try
                 {
                     // As far as I understand variables declared with 'var' do not have block scope
-                    var command = client.ParseCommand(message.content.trim());
+                    var command = this.ParseCommand(message.content.trim());
 
                     if(command.arguments.length > 0)
                     {
-                        client.ProcessCommand(message, command);
+                        this.ProcessCommand(message, command);
                     }
                 }
                 catch(err)
