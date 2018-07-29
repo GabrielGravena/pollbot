@@ -393,7 +393,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 
             ThrowInvalidNumberOfArgumentsIf(arguments.length != 1);
 
-            this.ListPolls(Message);
+            await this.ListPolls(Message);
             break;
 
         case "view":
@@ -411,7 +411,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
                 pollId = await this.GetPollIdFromChannel(Message.channel);
             }
 
-            this.View(Message, pollId);
+            await this.View(Message, pollId);
             break;
 
         case "vote":
@@ -450,7 +450,7 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
                 pollId = await this.GetPollIdFromChannel(Message.channel);
             }
 
-            this.Results(Message, pollId);
+            await this.Results(Message, pollId);
             break;
 
         default:
