@@ -140,13 +140,15 @@ Discord.Client.prototype.View = async function (Message, PollId)
 
     var polloptions = await this.db.allAsync(`SELECT name FROM polloptions WHERE pollid = ${PollId}`);
 
-    var replyMsg = `Here is the poll:\n\nName: ${poll[0]["name"]}\n\n`;
+    var replyMsg = `Here is the poll:\n\n\`\`\`Name: ${poll[0]["name"]}\n\n`;
 
     for(var j = 0;j < polloptions.length;j++)
     {
         replyMsg += `[${j}] ${polloptions[j]["name"]}\n`;
     }
 
+    replyMsg += `\`\`\``;
+    
     Message.reply(replyMsg);
 }
 
