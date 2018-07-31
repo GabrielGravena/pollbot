@@ -163,8 +163,7 @@ Discord.Client.prototype.Results = async function (Message, PollId)
     var polloptions = await this.db.allAsync(`
         SELECT
             polloptions.name as name,
-            count(votes.optionid) as voteCount,
-            count(*) as count
+            count(votes.optionid) as voteCount
         FROM
             polloptions LEFT JOIN
             votes
@@ -181,17 +180,24 @@ Discord.Client.prototype.Results = async function (Message, PollId)
     var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
 
     var totalVotes = 0;
-    for(var j = 0;j < polloptions.length;j++)
+    for (var j = 0;j < polloptions.length;j++)
     {
         var voteCount = polloptions[j]["voteCount"];
         totalVotes += voteCount;
+    }
+
+    for(var j = 0;j < polloptions.length;j++)
+    {
+        var voteCount = polloptions[j]["voteCount"];
 
         var verb =
             voteCount == 1
                 ? "vote"
                 : "votes";
 
-        replyMsg += `${polloptions[j]["name"]} - ${voteCount} ${verb}\n`;
+        var p = ((voteCount / totalVotes) * 100.0).toFixed(2);
+
+        replyMsg += `${polloptions[j]["name"]} - ${p}% (${voteCount} ${verb})\n`;
     }
 
     replyMsg += `\nNumber of votes: ${totalVotes}`;
