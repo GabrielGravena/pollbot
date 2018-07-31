@@ -177,13 +177,19 @@ Discord.Client.prototype.Results = async function (Message, PollId)
         ORDER BY
             voteCount DESC`);
 
-    var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
+    var replyMsg = `Here are the results:\n\n\`\`\`Name: ${poll[0]["name"]}\n\n`;
 
     var totalVotes = 0;
+    var maxLength = 0;
     for (var j = 0;j < polloptions.length;j++)
     {
         var voteCount = polloptions[j]["voteCount"];
         totalVotes += voteCount;
+
+        if (polloptions[j]["name"].length > maxLength)
+        {
+            maxLength = polloptions[j]["name"].length;
+        }
     }
 
     for(var j = 0;j < polloptions.length;j++)
@@ -197,10 +203,19 @@ Discord.Client.prototype.Results = async function (Message, PollId)
 
         var p = ((voteCount / totalVotes) * 100.0).toFixed(2);
 
-        replyMsg += `${polloptions[j]["name"]} - ${p}% (${voteCount} ${verb})\n`;
+        var length = polloptions[j]["name"].length;
+        var spacesToAdd = maxLength - length;
+
+        var name = polloptions[j]["name"];
+        while (--spacesToAdd >= 0)
+        {
+            name = name.concat(" ");
+        }
+
+        replyMsg += `${name} - ${p}% (${voteCount} ${verb})\n`;
     }
 
-    replyMsg += `\nNumber of votes: ${totalVotes}`;
+    replyMsg += `\nNumber of votes: ${totalVotes}\`\`\``;
 
     Message.reply(replyMsg);
 }
