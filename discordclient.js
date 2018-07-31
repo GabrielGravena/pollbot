@@ -110,7 +110,7 @@ Discord.Client.prototype.ListPolls = async function(Message)
             ? "poll"
             : "polls";
 
-    var replyMsg = `There ${verb} ${polls.length} active ${noun}.\n\n`;
+    var replyMsg = `There ${verb} ${polls.length} active ${noun}:\n\n`;
 
     for (var i=0;i<polls.length;i++)
     {
@@ -148,7 +148,7 @@ Discord.Client.prototype.View = async function (Message, PollId)
     }
 
     replyMsg += `\`\`\``;
-    
+
     Message.reply(replyMsg);
 }
 
