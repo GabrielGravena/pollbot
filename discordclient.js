@@ -222,7 +222,7 @@ Discord.Client.prototype.Vote = async function (Message, PollId, OptionIndex)
         }
     }
 
-    Message.reply(`Your vote was recorded! Type !${CommandPrefix}.results ${PollId} to see the partial results.`);
+    Message.reply(`Your vote was recorded! Type !results to see the partial results.`);
 }
 
 var CommandScope = 
