@@ -160,7 +160,22 @@ Discord.Client.prototype.Results = async function (Message, PollId)
         return;
     }
 
-    var polloptions = await this.db.allAsync(`SELECT polloptions.name as name, count(votes.optionid) as voteCount FROM polloptions LEFT JOIN votes ON votes.pollid = polloptions.pollid AND votes.optionid = polloptions.id WHERE polloptions.pollid = ${PollId} GROUP BY polloptions.id`);
+    var polloptions = await this.db.allAsync(`
+        SELECT
+            polloptions.name as name,
+            count(votes.optionid) as voteCount
+        FROM
+            polloptions LEFT JOIN
+            votes
+        ON
+            votes.pollid = polloptions.pollid AND
+            votes.optionid = polloptions.id
+        WHERE
+            polloptions.pollid = ${PollId}
+        GROUP BY
+            polloptions.id
+        ORDER BY
+            voteCount DESC`);
 
     var replyMsg = `Here are the results:\n\nName: ${poll[0]["name"]}\n\n`;
 
