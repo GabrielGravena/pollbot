@@ -56,6 +56,32 @@ Discord.Client.prototype.GetPollIdFromChannel = async function (Channel)
     return polls[0]["id"];
 }
 
+Discord.Client.prototype.ShowHelp = function (Message)
+{
+    var replyMsg = `\`\`\`
+!poll.help
+\tShows this message.
+
+!poll.create [Title] [Option 1] ... [Option n]
+\t Creates a poll in the current channel.
+\t Example: !poll.create "What is the best option?" "Option 1" "Option 2"
+
+!poll.list
+\t Shows a list of active polls and their channels.
+
+!view
+\t Shows the poll active in the current channel.
+
+!vote [option number]
+\t Vote on the poll active in the current channel, 'option number' is the number displayed in the !view command.
+\t Example: !vote 0
+
+!results
+\t Shows the results of the channel's currently active poll.\`\`\``;
+
+        Message.reply(replyMsg);
+}
+
 Discord.Client.prototype.CreatePoll = async function (Message, Name, Options)
 {
     console.log(`Creating poll ${arguments[1]}...`);
@@ -203,7 +229,10 @@ Discord.Client.prototype.Results = async function (Message, PollId)
                 ? "vote"
                 : "votes";
 
-        var p = ((voteCount / totalVotes) * 100.0).toFixed(2);
+        var p =
+            totalVotes != 0
+                ? ((voteCount / totalVotes) * 100.0).toFixed(2)
+                : `0.00`;
 
         var length = polloptions[j]["name"].length;
         var spacesToAdd = maxLength - length;
@@ -436,6 +465,11 @@ Discord.Client.prototype.ProcessCommand = async function (Message, Command)
 
     switch (arguments[0])
     {
+        case "help":
+
+            this.ShowHelp(Message);
+            break;
+
         case "create":
 
             ThrowInvalidNumberOfArgumentsIf(arguments.length < 2);
